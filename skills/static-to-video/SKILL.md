@@ -137,6 +137,10 @@ product-launch build: bring the Seedance clip in as a track, then compose a **br
 - End card treatment (matches Asian Paints): dark ground, brand color as the single accent, Inter, a
   short **kinetic-type barrage** resolving on the **wordmark + CTA pill**. Source placeholders from the
   brand kit; fall back to the template at **`assets/end-screen.html`** for tokens.
+- **The logo on the end card is MANDATORY.** Use the user's brand logo if given. Otherwise **crop the
+  logo/seal from the master reference** (isolate the mark, mask its background to transparent). If the
+  crop is unusable, **regenerate a clean transparent logo with `nano-banana-2`**, passing the cropped
+  mark as `referenceImages`. Place it as the hero element above the eyebrow, animated in first.
 - Set the HyperFrames canvas to the target AR (16:9 → 1920×1080). BGM with a hit on the end-card reveal.
 - Render via the HyperFrames pipeline / the app's render route. See `reference.md` for the calls.
 

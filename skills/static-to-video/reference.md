@@ -101,6 +101,11 @@ product-launch build.
 - **End card treatment (Asian Paints):** dark ground, brand color as the single accent, Inter, a short
   **kinetic-type barrage** resolving on the **wordmark + CTA pill**. The template
   `assets/end-screen.html` (`{{PLACEHOLDER}}` tokens) is the fallback source for brand tokens.
+- **Logo is required on the end card.** Priority: (1) user-supplied logo; (2) crop the mark/seal from the
+  master reference and mask its background to transparent — a solid-color disc/badge masks cleanly with a
+  circular alpha; (3) if the crop is poor, regenerate a transparent logo with `generate_image`
+  `model: nano-banana-2` passing the cropped mark as `referenceImages`. Copy into `assets/`, place as an
+  `<img>` hero above the eyebrow, animate in first (`back.out` spring).
 - **Canvas:** target AR — `16:9` → 1920×1080, `9:16` → 1080×1920, `1:1` → 1080×1080. Put the BGM hit on
   the end-card reveal.
 - **Render:** the app renders HTML → video via `lib/hyperframes/pipeline.ts` +
