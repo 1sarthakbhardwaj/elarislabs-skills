@@ -28,6 +28,24 @@ IDs are the `list_models` ids (verified live on the ElarisLabs MCP). **Always pa
 > `lib/mcp/tools/{registry,executors}.ts`). The executor maps the id to the exact fal endpoint, applies
 > the right duration format, and returns `modelUsed` so you can verify which model ran.
 
+#### Aspect-ratio support (pick a model that fits the requested AR)
+
+The model **must** support the target AR — never change the user's AR to fit a model. If the priority
+model can't do the AR, drop to the next model that can.
+
+| Model | 16:9 | 9:16 | 1:1 | 4:5 |
+|-------|:----:|:----:|:---:|:---:|
+| Seedance 2.0 (`seedance2-std-i2v`) | ✓ | ✓ | ✓ | ✗ |
+| Kling O3 Pro (`kling-o3-pro-i2v`)  | ✓ | ✓ | ✓ | ✗ |
+| Veo 3.1 (`veo31-std-i2v`)          | ✓ | ✓ | **✗** | ✗ |
+
+- **1:1 requested → Veo 3.1 is NOT a valid fallback** (it can't do square). Use Seedance 2.0, or Kling O3
+  Pro for people.
+- **4:5 requested → no i2v model does it natively.** Animate in the nearest supported AR (usually 9:16),
+  then set the **HyperFrames canvas to 1080×1350** and fit the clip (the reframe/outpaint step can also
+  build a true 4:5 master still). Confirm the approach with the user.
+- Always verify the model's `aspectRatios` via `list_models` before committing.
+
 ## Tool calls
 
 ### Check budget (free)
@@ -77,12 +95,17 @@ generate_video
   ran. If it fell back to something else, `regenerate_video` with the correct `model`.
 - `regenerate_video` takes the same `model` arg plus a `variationHint` to reroll a clip.
 
-Routing logic (decide **upfront** from the reference / look-spec `has_human` flag):
+Routing logic (decide **upfront** from `has_human` + the confirmed AR):
 ```
-if has_human / character in frame      -> kling-o3-pro-i2v      (go straight here, skip Seedance)
-else                                   -> seedance2-std-i2v     (fast draft: seedance2fast-fast-i2v)
-if BOTH Seedance and Kling fail        -> veo31-std-i2v         (last resort only)
+# 1) pick by content
+base = kling-o3-pro-i2v  if has_human/character in frame  else seedance2-std-i2v
+# 2) enforce AR support (must fit the user's AR; do NOT change the AR)
+if base does not support target_AR:  base = first model that fits (has_human? kling : seedance)
+# 3) last resort only if both above fail — and only if it supports the AR
+fallback = veo31-std-i2v   only if target_AR in {16:9, 9:16}   (Veo has no 1:1)
 ```
+Duration: `durationSeconds` = this clip's share of `ai_seconds` (= total − ~3s end card). Never pad the
+AI clip to fake the total; the end card fills the remainder in HyperFrames.
 
 ### Stitch frames only (no per-frame animation)
 For a pure timelapse of stills (not stop-motion), `create_hyperlapse` stitches image URLs locally:

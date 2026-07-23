@@ -2,11 +2,13 @@
 name: static-to-video
 description: >-
   Turn a reference image or a plain brief into an on-brand stop-motion video using the ElarisLabs
-  Creative Studio (MCP tools). Breaks the look into an editable spec, generates on-brand stills with
-  gpt-image-2 or nano-banana-2, waits for approval, animates the approved frames with Seedance 2.0
-  (Kling O3 Pro fallback when a human/character is in frame, Veo 3.1 as last resort), and assembles the
-  clips + a branded end card + BGM in HyperFrames. Use when the user asks to make a video from a still/reference image,
-  a "static to video", stop-motion, product animation, or an on-brand promo from a brief.
+  Creative Studio (MCP tools). Always confirms the brief first (aspect ratio, total length, style, brand
+  assets — never assumed). Breaks the look into an editable spec, generates on-brand stills with
+  gpt-image-2 or nano-banana-2, waits for approval, animates the approved frames with an AR-capable model
+  (Seedance 2.0 default, Kling O3 Pro when a human/character is in frame, Veo 3.1 last resort), and
+  assembles the clips + a mandatory-logo branded end card + BGM in HyperFrames (AI clip + ~3s end card =
+  total). Use when the user asks to make a video from a still/reference image, a "static to video",
+  stop-motion, product animation, or an on-brand promo from a brief.
 disable-model-invocation: true
 ---
 
@@ -17,6 +19,15 @@ Turn a **reference image or a brief** into an **on-brand stop-motion video**, th
 
 ## Golden rules
 
+- **Ask what the user actually needs FIRST, then start.** Never assume aspect ratio, length, or style.
+  Confirm the brief (Step 0) before generating anything. Defaults are only a *fallback* when the user
+  explicitly says "you decide."
+- **Never assume aspect ratio.** Use what the user gives; if unspecified, ask (`9:16` / `16:9` / `1:1` /
+  `4:5`). **The chosen video model MUST support the target AR** — if the primary model can't do it,
+  switch to a model that does (see the AR→model rule in step 5), never stretch or letterbox.
+- **Budget total length as AI clip + end screen.** When the user gives a total (e.g. "15s"), the AI
+  animation is `total − end_screen` and the end screen is ~3s. So 15s → **~12s AI + ~3s end card**.
+  Keep this split unless the user overrides either number.
 - **Never skip the approval gate.** Generate stills, show them, and wait for the user to pick before
   spending credits on video.
 - **Ask for brand assets up front** (logo, name, colors) — the deliverable is branded, and the end
@@ -30,15 +41,29 @@ Turn a **reference image or a brief** into an **on-brand stop-motion video**, th
 Copy this checklist and track progress:
 
 ```
+- [ ] 0. Confirm needs — ASK first: aspect ratio, total length, style, brand assets. Don't assume.
 - [ ] 1. Intake — collect reference/brief + brand assets
-- [ ] 2. Look Spec — derive an editable spec, get sign-off
+- [ ] 2. Look Spec — derive an editable spec (with confirmed AR + length budget), get sign-off
 - [ ] 2b. Aspect reframe — if source AR ≠ target, nano-banana-2 first
 - [ ] 3. Stills — generate on-brand frames (nano-banana-2 / gpt-image-2)
 - [ ] 4. Approval gate — user selects keepers
-- [ ] 5. Animate — per approved still (Seedance 2.0 → Kling O3 Pro → Veo 3.1, pinned via `model`)
+- [ ] 5. Animate — per approved still (AR-capable model; Seedance 2.0 → Kling O3 Pro → Veo 3.1, pinned via `model`)
 - [ ] 6. Assemble in HyperFrames — clips + branded end card + BGM (Asian Paints style)
 - [ ] 7. Deliver — final video + summary (frames, model used, credits)
 ```
+
+### 0. Confirm needs (do this before anything)
+
+**Always ask the user what they actually need before starting.** Do not assume. Confirm at minimum:
+
+- **Aspect ratio** — `9:16`, `16:9`, `1:1`, or `4:5`. If they give one, use it. If not, ask. Only fall
+  back to a default if they say "you choose."
+- **Total length** — then split it: **AI clip = total − ~3s end screen**. E.g. "15s" → ~12s AI + ~3s end
+  card. Confirm the split.
+- **Style / mood**, **brand assets** (logo, name, colors, CTA), and whether they have a reference image.
+
+Echo the confirmed AR + length split back to the user, then proceed. The rest of the workflow inherits
+these values.
 
 ### 1. Intake
 
@@ -47,7 +72,8 @@ Accept **either** a reference image URL **or** a text brief. Then ask for the br
 - **Brand logo** (transparent PNG or SVG) — required for the end screen. Ask explicitly.
 - **Brand name** + optional **tagline / CTA**.
 - **Primary + secondary colors** (hex). Fall back to palette pulled from the reference image.
-- **Aspect ratio** (default `9:16` for social, `16:9` for landscape) and **rough length**.
+- **Aspect ratio** — whatever the user specified in Step 0 (no silent default). **Rough length** — the
+  total the user wants, already split into AI clip + ~3s end card.
 
 If a reference image was given, run `score_creative` (optional) or just read it to seed the spec.
 
@@ -65,14 +91,20 @@ composition:    # framing, camera angle, negative space for text
 mood:           # 2–3 adjectives
 motion_feel:    # stop-motion cadence: snappy | dreamy | mechanical
 frames:         # 3–6 beats, each one sentence (these become the stills)
-aspect_ratio:   # 9:16 | 16:9 | 1:1
+aspect_ratio:   # 9:16 | 16:9 | 1:1 | 4:5  ← from the user (Step 0), never assumed
+total_seconds:  # total video length the user asked for
+ai_seconds:     # = total_seconds − end_seconds  (the animated clip[s])
+end_seconds:    # ~3 (the branded end card)
 ```
 
 Each entry in `frames` becomes one still in step 3. Keep 3–6 frames for a tight stop-motion loop.
+`ai_seconds` is the budget for the animated clip(s); `end_seconds` (~3) is the end card. They must sum to
+`total_seconds`.
 
 ### 2b. Aspect reframe (required when AR differs)
 
-After look-spec sign-off, compare the **source image aspect ratio** to `aspect_ratio` in the spec.
+After look-spec sign-off, compare the **source image aspect ratio** to the **user-confirmed
+`aspect_ratio`** in the spec (from Step 0 — never a silent default).
 
 - If they **match** → skip; use the original as the master reference.
 - If they **differ** → call `generate_image` with `model: "nano-banana-2"`, the original as
@@ -120,6 +152,14 @@ accepts `model` — pass an id from `list_models`). Follow this fallback chain:
 Rules:
 - **Choose upfront:** if the reference/spec has people or characters, go **straight to Kling O3 Pro** —
   don't waste a Seedance pass. Otherwise Seedance 2.0.
+- **The model MUST support the target aspect ratio.** Before picking, check the model's `aspectRatios`
+  via `list_models` / `reference.md`. If the priority model can't do the requested AR (e.g. user wants
+  `1:1` but the chosen i2v variant is 16:9-only), **switch to a model that supports that AR** rather than
+  changing the user's AR. AR-capability beats the priority order — pick the highest-priority model that
+  *both* fits the human/no-human situation *and* supports the AR.
+- **Duration:** pass `durationSeconds` = the clip's share of `ai_seconds`. For a single hero beat that's
+  the whole `ai_seconds` (cap per the model's max; split into multiple clips if longer). The end card
+  covers `end_seconds` in HyperFrames — never pad the AI clip to fake total length.
 - **Always pass `model`.** Never rely on the server default (it may pick Veo). After each call, read
   the result's `modelUsed` (or `get_generation_history`) to confirm the right model ran; regenerate if not.
 - **Never Veo 3.1 as a default** — it's only the last-resort fallback.
@@ -141,7 +181,9 @@ product-launch build: bring the Seedance clip in as a track, then compose a **br
   logo/seal from the master reference** (isolate the mark, mask its background to transparent). If the
   crop is unusable, **regenerate a clean transparent logo with `nano-banana-2`**, passing the cropped
   mark as `referenceImages`. Place it as the hero element above the eyebrow, animated in first.
-- Set the HyperFrames canvas to the target AR (16:9 → 1920×1080). BGM with a hit on the end-card reveal.
+- Set the HyperFrames canvas to the **confirmed AR**: `16:9`→1920×1080, `9:16`→1080×1920, `1:1`→1080×1080,
+  `4:5`→1080×1350. Root `data-duration` = `total_seconds`; clip track = `ai_seconds`; end card = `end_seconds`.
+- BGM with a hit on the end-card reveal.
 - Render via the HyperFrames pipeline / the app's render route. See `reference.md` for the calls.
 
 ### 7. Deliver
