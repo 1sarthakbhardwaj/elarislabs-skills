@@ -97,12 +97,17 @@ Accept **either** a reference image URL **or** a text brief. Then ask for the br
 
 If a reference image was given, run `score_creative` (optional) or just read it to seed the spec.
 
-**Local files → get a public URL first.** Every generation tool needs a public https URL, and the server
-can't read your disk. If the reference/logo/still is a **local file**, don't try to inline a huge base64
-and don't declare yourself blocked — call **`create_upload_url`** (mint a presigned URL, then PUT the raw
-bytes straight to storage; file size is irrelevant since the bytes never pass through the tool call), then
-use the returned `file_url`. For small files already in base64/data-URL form, `upload_asset` works inline.
-Both are free. See `reference.md` → "Getting a file into storage".
+**Local files → get a public URL first.** Every generation tool needs a public https URL; the server can't
+read your disk. **Never declare yourself blocked** — pick the path for your client:
+- **MCP-only client (Claude Desktop/web, no shell):** if the user **attached the image**, call
+  `upload_asset` and pass that attachment as `source`. The client supplies the bytes — do **not** retype
+  base64 or refuse because it "looks too big." Returns a hosted `url`.
+- **Client with a shell (Cursor/local):** call `create_upload_url` and use the `relay` curl (POST bytes to
+  the allowlisted MCP host; server forwards to storage) → `file_url`.
+- **Image already at a reachable URL:** `upload_asset` with `rehost: true`.
+- **Last resort:** ask the user to upload it in Creative Studio and paste the asset URL.
+
+All upload tools are free. Full details + curl in `reference.md` → "Getting a local file into storage".
 
 ### 2. Look Spec (editable)
 
