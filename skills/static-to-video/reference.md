@@ -8,7 +8,7 @@ Exact MCP tool calls, model IDs, fallbacks, and rendering options. Server: **Ela
 ### Image (`generate_image` accepts a `model`)
 | Model | `model` id | Use |
 |-------|-----------|-----|
-| Nano Banana 2 | `nano-banana-2` | Default on-brand stills, character/product consistency |
+| Nano Banana 2 | `nano-banana-2` | Aspect reframe (source AR ≠ target) + default on-brand stills / product consistency |
 | GPT Image 2 | `gpt-image-2` | Text-in-image, precise multi-ref edits, premium fidelity |
 | Flux 2 Flash | `flux-2-flash` | Fast/cheap drafts |
 | Seedream v5 Lite | `seedream-v5-lite` | Cost-effective alternative |
@@ -30,12 +30,31 @@ Exact MCP tool calls, model IDs, fallbacks, and rendering options. Server: **Ela
 get_credits
 ```
 
+### Aspect reframe (when source AR ≠ target AR) — do this before stills
+Skip if source already matches `aspect_ratio` in the look spec.
+
+```
+generate_image
+  prompt:          "Recompose this ad into a clean <TARGET_RATIO> canvas. Keep the same product,
+                    props, lighting, palette, and typography style. Outpaint / extend the scene
+                    naturally to fill the new frame — do not stretch, squash, or letterbox.
+                    Preserve brand hierarchy and leave readable negative space where copy lives."
+  model:           "nano-banana-2"
+  referenceImages: ["<original reference url or data URL>"]
+  resolution:      "2K"
+```
+
+Use the returned URL as the **master reference** for all subsequent stills.
+
+Detect source AR from image dimensions (e.g. 1024×1024 → `1:1`, 1080×1920 → `9:16`).
+Normalize common targets: `1:1`, `9:16`, `16:9`, `4:5`.
+
 ### Generate a still
 ```
 generate_image
   prompt:          "<frame sentence from the look spec, on-brand>"
   model:           "nano-banana-2"          # or "gpt-image-2"
-  referenceImages: ["<reference image url>", "<brand logo url if it should appear>"]
+  referenceImages: ["<master reference url>", "<brand logo url if it should appear>"]
   resolution:      "2K"
   quality:         "high"                    # gpt-image models only
 ```

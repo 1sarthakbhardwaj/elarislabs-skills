@@ -32,6 +32,7 @@ Copy this checklist and track progress:
 ```
 - [ ] 1. Intake — collect reference/brief + brand assets
 - [ ] 2. Look Spec — derive an editable spec, get sign-off
+- [ ] 2b. Aspect reframe — if source AR ≠ target, nano-banana-2 first
 - [ ] 3. Stills — generate on-brand frames (nano-banana-2 / gpt-image-2)
 - [ ] 4. Approval gate — user selects keepers
 - [ ] 5. Animate — stop-motion per approved still (Seedance / Kling / Gemini)
@@ -69,18 +70,34 @@ aspect_ratio:   # 9:16 | 16:9 | 1:1
 
 Each entry in `frames` becomes one still in step 3. Keep 3–6 frames for a tight stop-motion loop.
 
+### 2b. Aspect reframe (required when AR differs)
+
+After look-spec sign-off, compare the **source image aspect ratio** to `aspect_ratio` in the spec.
+
+- If they **match** → skip; use the original as the master reference.
+- If they **differ** → call `generate_image` with `model: "nano-banana-2"`, the original as
+  `referenceImages`, and a reframe prompt that asks to **recompose / outpaint into the target ratio**
+  while keeping product, lighting, typography style, and brand look. Use the returned image as the
+  **master reference** for every later still. Show the reframed canvas once before generating frames.
+
+Do **not** stretch or letterbox with naive crop alone — Nano Banana 2 should invent plausible
+surrounding scene so the composition still reads as a designed ad at the target ratio.
+
+See `reference.md` for the exact MCP call and prompt pattern.
+
 ### 3. Generate stills
 
 For each frame in the spec, call `generate_image`. Pick the model by need:
 
 | Need | Model (`model` arg) |
 |------|---------------------|
+| Aspect reframe when source AR ≠ target AR | `nano-banana-2` |
 | Default on-brand stills, character/product consistency | `nano-banana-2` |
 | Text baked into the image, precise multi-reference edits, premium fidelity | `gpt-image-2` |
 | Fast/cheap draft passes | `flux-2-flash` |
 
-- Pass the **reference image** (and the brand logo when it should appear) as `referenceImages` to keep
-  frames consistent and on-brand.
+- Pass the **master reference** (original or reframed) and the brand logo when it should appear as
+  `referenceImages` to keep frames consistent and on-brand.
 - Generate 1–2 variants per frame. Keep resolution `1K`–`2K` for stills that will be animated.
 
 ### 4. Approval gate — REQUIRED
