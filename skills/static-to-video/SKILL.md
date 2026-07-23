@@ -3,7 +3,9 @@ name: static-to-video
 description: >-
   Turn a reference image or a plain brief into an on-brand stop-motion video using the ElarisLabs
   Creative Studio (MCP tools). Always confirms the brief first (aspect ratio, total length, style, brand
-  assets — never assumed). Breaks the look into an editable spec, generates on-brand stills with
+  assets — never assumed) AND whether the input is a finished creative or a brief: a finished, on-brand
+  creative is animated directly as the hero seed (no new stills); only a brief/rough reference goes
+  through still generation. Breaks the look into an editable spec, generates on-brand stills with
   gpt-image-2 or nano-banana-2, waits for approval, animates the approved frames with an AR-capable model
   (Seedance 2.0 default, Kling O3 Pro when a human/character is in frame, Veo 3.1 last resort), and
   assembles the clips + a mandatory-logo branded end card + BGM in HyperFrames (AI clip + ~3s end card =
@@ -19,6 +21,15 @@ Turn a **reference image or a brief** into an **on-brand stop-motion video**, th
 
 ## Golden rules
 
+- **Decide the input type FIRST: finished creative vs. brief.** This is the most important fork.
+  - **Finished creative** (the user hands over a complete, on-brand ad/still that already reads as
+    designed — e.g. a product hero with the logo/type/layout already in it): treat it as the **hero
+    seed**. **Do NOT regenerate stills.** Reframe only if AR differs, then animate the hero *directly*.
+    Only use `generate_image` to extract/rebuild the transparent logo for the end card.
+  - **Brief or rough/loose reference** (a text prompt, mood image, or "make me an ad"): run the **full
+    spec path** — derive frames, generate stills, approval gate, then animate.
+  - When unsure, **ask** ("Should I animate this creative as-is, or generate new frames from it?").
+    Regenerating a finished creative wastes credits and drifts from the brand's real artwork.
 - **Ask what the user actually needs FIRST, then start.** Never assume aspect ratio, length, or style.
   Confirm the brief (Step 0) before generating anything. Defaults are only a *fallback* when the user
   explicitly says "you decide."
@@ -28,8 +39,9 @@ Turn a **reference image or a brief** into an **on-brand stop-motion video**, th
 - **Budget total length as AI clip + end screen.** When the user gives a total (e.g. "15s"), the AI
   animation is `total − end_screen` and the end screen is ~3s. So 15s → **~12s AI + ~3s end card**.
   Keep this split unless the user overrides either number.
-- **Never skip the approval gate.** Generate stills, show them, and wait for the user to pick before
-  spending credits on video.
+- **Never skip the approval gate.** On the brief path, generate stills, show them, and wait for the user
+  to pick before spending credits on video. On the hero-seed path there are no new stills — instead
+  confirm the (reframed) hero is the frame to animate before spending video credits.
 - **Ask for brand assets up front** (logo, name, colors) — the deliverable is branded, and the end
   screen needs them.
 - **Everything is billed to the brand** the API key is bound to. Check `get_credits` before a large run
@@ -41,13 +53,16 @@ Turn a **reference image or a brief** into an **on-brand stop-motion video**, th
 Copy this checklist and track progress:
 
 ```
-- [ ] 0. Confirm needs — ASK first: aspect ratio, total length, style, brand assets. Don't assume.
+- [ ] 0. Confirm needs — ASK first: input type (finished creative vs brief), aspect ratio, length, style, brand assets.
 - [ ] 1. Intake — collect reference/brief + brand assets
 - [ ] 2. Look Spec — derive an editable spec (with confirmed AR + length budget), get sign-off
+        (brief path only; for a finished creative, just read its look — don't invent new frames)
 - [ ] 2b. Aspect reframe — if source AR ≠ target, nano-banana-2 first
-- [ ] 3. Stills — generate on-brand frames (nano-banana-2 / gpt-image-2)
-- [ ] 4. Approval gate — user selects keepers
-- [ ] 5. Animate — per approved still (AR-capable model; Seedance 2.0 → Kling O3 Pro → Veo 3.1, pinned via `model`)
+- [ ] 3. Frame to animate:
+        • HERO-SEED (finished creative): use the (reframed) creative AS-IS. Skip still generation.
+        • BRIEF path: generate on-brand stills from the spec (nano-banana-2 / gpt-image-2).
+- [ ] 4. Approval gate — brief path: user selects keepers. hero path: confirm the hero frame.
+- [ ] 5. Animate — the approved frame(s) (AR-capable model; Seedance 2.0 → Kling O3 Pro → Veo 3.1, pinned via `model`)
 - [ ] 6. Assemble in HyperFrames — clips + branded end card + BGM (Asian Paints style)
 - [ ] 7. Deliver — final video + summary (frames, model used, credits)
 ```
@@ -56,6 +71,11 @@ Copy this checklist and track progress:
 
 **Always ask the user what they actually need before starting.** Do not assume. Confirm at minimum:
 
+- **Input type (decide this first).** Is the provided image a **finished creative** (a complete, on-brand
+  ad/hero that already reads as designed) or a **brief/rough reference**? A finished creative → **hero-seed
+  path** (animate it directly, no new stills). A brief → **full spec path** (generate stills). If it's
+  ambiguous, ask: "Animate this creative as-is, or generate fresh frames from it?" Default for a polished
+  hero is animate-as-is — never silently regenerate someone's finished artwork.
 - **Aspect ratio** — `9:16`, `16:9`, `1:1`, or `4:5`. If they give one, use it. If not, ask. Only fall
   back to a default if they say "you choose."
 - **Total length** — then split it: **AI clip = total − ~3s end screen**. E.g. "15s" → ~12s AI + ~3s end
@@ -117,7 +137,18 @@ surrounding scene so the composition still reads as a designed ad at the target 
 
 See `reference.md` for the exact MCP call and prompt pattern.
 
-### 3. Generate stills
+### 3. Frame(s) to animate — fork by input type
+
+**Hero-seed path (finished creative — the common case for a supplied ad/hero image):**
+
+- **Do NOT generate stills.** The user's creative (or its reframed version from Step 2b) **is** the frame
+  to animate. Regenerating it re-invents the brand's own artwork and wastes credits.
+- The only `generate_image` call on this path is to **build the transparent logo** for the end card
+  (crop the mark from the creative, mask to transparent; if unusable, rebuild with `nano-banana-2` using
+  the crop as `referenceImages` — see Step 6).
+- Go straight to the approval gate (confirm the hero frame), then animate.
+
+**Brief path (text brief / rough or mood reference — no finished creative):**
 
 For each frame in the spec, call `generate_image`. Pick the model by need:
 
@@ -134,8 +165,10 @@ For each frame in the spec, call `generate_image`. Pick the model by need:
 
 ### 4. Approval gate — REQUIRED
 
-Present every still. Ask the user to select which ones to animate. **Do not proceed to video until they
-confirm.** Only approved stills move to step 5.
+- **Brief path:** present every still and ask the user to select which ones to animate.
+- **Hero-seed path:** confirm the (reframed) hero creative is the frame to animate.
+
+**Do not proceed to video until they confirm.** Only approved frames move to step 5.
 
 ### 5. Animate — pin the model (video guard)
 
