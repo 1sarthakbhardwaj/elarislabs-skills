@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{BRAND_NAME}} — first card</title>
+<!--
+  First-card template for static-to-video.
+  Tokens: {{PRIMARY_COLOR}} {{SECONDARY_COLOR}} {{ACCENT_COLOR}} {{TEXT_COLOR}}
+           {{BRAND_NAME}} {{HEADLINE}} {{SUBHEAD}} {{SEED_IMAGE}} (optional soft bg)
+  Default canvas 1080×1080 (1:1). Adjust .stage for 9:16 / 16:9.
+-->
+<style>
+  :root {
+    --primary: {{PRIMARY_COLOR}};
+    --secondary: {{SECONDARY_COLOR}};
+    --accent: {{ACCENT_COLOR}};
+    --text: {{TEXT_COLOR}};
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #000; overflow: hidden; }
+  .stage {
+    width: 1080px; height: 1080px; margin: 0 auto; position: relative;
+    display: grid; place-items: center; text-align: center;
+    color: var(--text);
+    font-family: Georgia, "Times New Roman", serif;
+    background:
+      radial-gradient(80% 70% at 50% 40%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%),
+      linear-gradient(160deg, var(--primary), var(--secondary));
+    overflow: hidden;
+  }
+  .bg {
+    position: absolute; inset: 0; opacity: .18; object-fit: cover; width: 100%; height: 100%;
+    filter: blur(8px) saturate(1.1);
+  }
+  .content { position: relative; padding: 64px; }
+  .seal {
+    width: 180px; height: 180px; margin: 0 auto 40px; border-radius: 50%;
+    border: 3px solid color-mix(in srgb, var(--text) 70%, transparent);
+    display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 55%, transparent);
+    font-size: 22px; font-weight: 700; letter-spacing: .04em; line-height: 1.15;
+    opacity: 0; transform: scale(.9);
+    animation: rise .8s cubic-bezier(.2,.8,.2,1) .1s forwards;
+  }
+  .headline {
+    font-size: 64px; font-weight: 700; line-height: 1.1;
+    opacity: 0; transform: translateY(20px);
+    animation: rise .8s cubic-bezier(.2,.8,.2,1) .25s forwards;
+  }
+  .headline .accent { color: var(--accent); }
+  .sub {
+    margin-top: 20px; font-size: 28px; font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: color-mix(in srgb, var(--text) 80%, transparent);
+    opacity: 0; transform: translateY(16px);
+    animation: rise .8s cubic-bezier(.2,.8,.2,1) .4s forwards;
+  }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <img class="bg" src="{{SEED_IMAGE}}" alt="" />
+    <div class="content">
+      <div class="seal">{{BRAND_NAME}}</div>
+      <div class="headline">{{HEADLINE}}</div>
+      <div class="sub">{{SUBHEAD}}</div>
+    </div>
+  </div>
+</body>
+</html>

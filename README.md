@@ -6,7 +6,7 @@ Agent skills for [ElarisLabs](https://studio.elarislabs.ai) Creative Studio — 
 
 | Skill | What it does |
 |-------|----------------|
-| [`static-to-video`](skills/static-to-video/) | Reference image or brief → editable look spec → on-brand stills → approval → stop-motion video → branded end screen |
+| [`static-to-video`](skills/static-to-video/) | Seed still → optional AR reframe / close-ups → I2V (Seedance) → HyperFrames first+end cards + instrumental BGM (no VO) |
 
 ## Install (Cursor)
 
