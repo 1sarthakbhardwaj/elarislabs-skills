@@ -97,6 +97,13 @@ Accept **either** a reference image URL **or** a text brief. Then ask for the br
 
 If a reference image was given, run `score_creative` (optional) or just read it to seed the spec.
 
+**Local files → get a public URL first.** Every generation tool needs a public https URL, and the server
+can't read your disk. If the reference/logo/still is a **local file**, don't try to inline a huge base64
+and don't declare yourself blocked — call **`create_upload_url`** (mint a presigned URL, then PUT the raw
+bytes straight to storage; file size is irrelevant since the bytes never pass through the tool call), then
+use the returned `file_url`. For small files already in base64/data-URL form, `upload_asset` works inline.
+Both are free. See `reference.md` → "Getting a file into storage".
+
 ### 2. Look Spec (editable)
 
 Break the look down into this structured spec and **show it to the user for edits** before generating:

@@ -3,6 +3,45 @@
 Exact MCP tool calls, model IDs, fallbacks, and rendering options. Server: **ElarisLabs MCP**
 (`user-elarislabs` in Cursor / `elarislabs` via `https://studio.elarislabs.ai/api/mcp`).
 
+## Getting a file into storage (do this FIRST for any local file)
+
+Every generation tool (`generate_image` `referenceImages`, `generate_video` `imageUrl`, `score_creative`,
+`schedule_post`) needs a **public https URL**. A local file on disk isn't reachable by the server. **Do
+not conclude you're blocked** — there are two free tools for this. Never give up because a base64 payload
+"looks too big": use `create_upload_url` instead.
+
+| Situation | Tool | How |
+|-----------|------|-----|
+| **Large / on-disk file** (the common case: a full-res PNG/JPG/MP4) | **`create_upload_url`** | Mint a presigned URL, then PUT the raw bytes straight to storage — **the file never passes through the tool call**, so size is irrelevant. |
+| Small file you already have as base64 / data URL, or a remote URL to re-host | `upload_asset` | Pass `source` inline (base64/data URL/URL). Cheap only for small payloads. |
+
+**`create_upload_url` (preferred for local files):**
+```
+create_upload_url
+  filename:    "lumina.png"
+  contentType: "image/png"        # or video/mp4, audio/mpeg, …
+  kind:        "image"            # image | video | audio | other
+# → returns { upload_url, file_url, curl, instructions }
+```
+Then PUT the bytes directly (bytes go machine → storage, not through the model):
+```
+curl -X PUT '<upload_url>' -H 'Content-Type: image/png' --data-binary @/path/to/lumina.png
+# on 200, use file_url everywhere a public URL is needed
+```
+Use the returned **`file_url`** as `imageUrl` / `referenceImages` in the steps below.
+
+**`upload_asset` (inline, small files only):**
+```
+upload_asset
+  source: "data:image/png;base64,...."   # or raw base64, or an https URL
+  kind:   "image"
+  rehost: false                           # true = copy a remote URL onto storage
+# → returns { url }
+```
+
+> Both tools are **free** (storage only, no model runs). Verified live on the ElarisLabs MCP:
+> `create_upload_url` PUT → `file_url` fetchable at full resolution.
+
 ## Model IDs (grounded to the repo)
 
 ### Image (`generate_image` accepts a `model`)
@@ -83,11 +122,13 @@ generate_image
 ```
 
 ### Animate a still (pin the model)
+`imageUrl` must be a public URL. If the frame is a **local file**, get a URL first with
+`create_upload_url` (see "Getting a file into storage" above) — don't try to inline a large base64.
 ```
 generate_video
   prompt:          "frame-by-frame stop-motion of <subject>, slight pose shifts, subtle
                     handheld jitter, ~12fps cadence, hold subject stable"
-  imageUrl:        "<approved still url>"
+  imageUrl:        "<approved still url — e.g. the file_url from create_upload_url>"
   durationSeconds: 3
   model:           "seedance2-std-i2v"   # <- ALWAYS pass. Kling: kling-o3-pro-i2v. Veo: veo31-std-i2v.
 ```
