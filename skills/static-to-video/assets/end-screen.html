@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{BRAND_NAME}} — end screen</title>
+<!--
+  Reusable branded end-screen for the `static-to-video` skill.
+  Fill the {{TOKENS}} then render the page to a 2–3s clip (see reference.md).
+
+  Tokens:
+    {{PRIMARY_COLOR}}   base brand color   e.g. #6d5efc
+    {{SECONDARY_COLOR}} gradient partner   e.g. #120b2a
+    {{ACCENT_COLOR}}    highlight / CTA     e.g. #5ec8ff
+    {{TEXT_COLOR}}      foreground text     e.g. #ffffff
+    {{BRAND_LOGO}}      hero logo url (transparent PNG/SVG)
+    {{BRAND_NAME}}      brand name
+    {{TAGLINE}}         one-line tagline
+    {{CTA}}             call to action     e.g. "studio.elarislabs.ai"
+    {{PARTNER_LOGOS}}   optional: HTML <img> tags for the bottom brand-logo row
+                        (leave empty to hide the row)
+
+  Canvas: defaults to 9:16 (1080×1920). For 16:9 set .stage width/height to 1920×1080,
+  for 1:1 set 1080×1080. Everything scales from --unit.
+-->
+<style>
+  :root {
+    --primary: {{PRIMARY_COLOR}};
+    --secondary: {{SECONDARY_COLOR}};
+    --accent: {{ACCENT_COLOR}};
+    --text: {{TEXT_COLOR}};
+    --unit: 1080;                 /* short-edge reference in px */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #000; overflow: hidden; }
+
+  .stage {
+    position: relative;
+    width: 1080px;
+    height: 1920px;               /* 9:16 default */
+    margin: 0 auto;
+    display: grid;
+    place-items: center;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    background:
+      radial-gradient(120% 80% at 50% 18%, color-mix(in srgb, var(--primary) 55%, transparent), transparent 60%),
+      radial-gradient(120% 90% at 50% 120%, color-mix(in srgb, var(--secondary) 70%, transparent), transparent 55%),
+      linear-gradient(160deg, color-mix(in srgb, var(--primary) 22%, #05060a), #05060a 70%);
+  }
+
+  /* slow drifting glow for life */
+  .aurora {
+    position: absolute; inset: -20%;
+    background:
+      radial-gradient(40% 40% at 30% 30%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 70%),
+      radial-gradient(45% 45% at 72% 62%, color-mix(in srgb, var(--primary) 45%, transparent), transparent 70%);
+    filter: blur(40px);
+    animation: drift 8s ease-in-out infinite alternate;
+    opacity: .8;
+  }
+  @keyframes drift {
+    from { transform: translate3d(-3%, -2%, 0) scale(1.02); }
+    to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
+  }
+
+  /* film grain — matches the stop-motion body of the video */
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation: grain 0.6s steps(2) infinite;
+  }
+  @keyframes grain { to { transform: translate(-6px, 4px); } }
+
+  .content { position: relative; text-align: center; padding: 0 96px; }
+
+  .logo {
+    width: 380px; max-width: 60%; height: auto; display: block; margin: 0 auto 48px;
+    filter: drop-shadow(0 12px 40px color-mix(in srgb, var(--accent) 40%, transparent));
+    opacity: 0; transform: translateY(28px) scale(.92);
+    animation: rise .9s cubic-bezier(.2,.8,.2,1) .15s forwards;
+  }
+  .name {
+    font-size: 92px; font-weight: 800; letter-spacing: -.02em; line-height: 1.02;
+    background: linear-gradient(90deg, var(--text), color-mix(in srgb, var(--accent) 70%, var(--text)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    opacity: 0; transform: translateY(24px);
+    animation: rise .9s cubic-bezier(.2,.8,.2,1) .35s forwards;
+  }
+  .tagline {
+    margin-top: 22px; font-size: 40px; font-weight: 400; line-height: 1.3;
+    color: color-mix(in srgb, var(--text) 78%, transparent);
+    opacity: 0; transform: translateY(20px);
+    animation: rise .9s cubic-bezier(.2,.8,.2,1) .5s forwards;
+  }
+  .cta {
+    display: inline-flex; align-items: center; gap: 16px; margin-top: 56px;
+    padding: 26px 46px; border-radius: 999px; font-size: 38px; font-weight: 600;
+    color: #05060a; background: linear-gradient(135deg, var(--accent), var(--primary));
+    box-shadow: 0 20px 60px color-mix(in srgb, var(--primary) 45%, transparent);
+    opacity: 0; transform: translateY(18px) scale(.96);
+    animation: rise .9s cubic-bezier(.2,.8,.2,1) .68s forwards;
+  }
+  .cta::before {
+    content: ""; width: 14px; height: 14px; border-radius: 50%;
+    background: #05060a; box-shadow: 0 0 0 6px color-mix(in srgb, #05060a 30%, transparent);
+  }
+
+  /* bottom row of additional brand / partner logos */
+  .partners {
+    position: absolute; left: 0; right: 0; bottom: 110px;
+    display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap;
+    padding: 0 96px; opacity: 0;
+    animation: fade 1s ease .95s forwards;
+  }
+  .partners img { height: 64px; width: auto; opacity: .85; filter: grayscale(1) brightness(1.6); }
+  .partners:empty { display: none; }
+
+  @keyframes rise { to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes fade { to { opacity: 1; } }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="aurora"></div>
+
+    <div class="content">
+      <img class="logo" src="{{BRAND_LOGO}}" alt="{{BRAND_NAME}} logo" />
+      <div class="name">{{BRAND_NAME}}</div>
+      <div class="tagline">{{TAGLINE}}</div>
+      <div class="cta">{{CTA}}</div>
+    </div>
+
+    <!-- Additional brand logos row. Inject <img> tags into {{PARTNER_LOGOS}}, or delete this block. -->
+    <div class="partners">{{PARTNER_LOGOS}}</div>
+
+    <div class="grain"></div>
+  </div>
+</body>
+</html>
