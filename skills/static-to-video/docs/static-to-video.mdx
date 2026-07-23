@@ -1,0 +1,122 @@
+---
+title: "Static → Video"
+sidebarTitle: "Static to Video"
+description: "Turn a reference image or a brief into an on-brand stop-motion video with a branded end card, powered by the ElarisLabs Creative Studio MCP tools."
+icon: "clapperboard"
+---
+
+<Note>
+  This is an **Agent Skill** for Cursor / Claude. It runs on the ElarisLabs Creative Studio
+  MCP server (`https://studio.elarislabs.ai/api/mcp`). Install it into your agent's skills
+  directory and it triggers whenever you ask to make a video from a still, reference, or brief.
+</Note>
+
+## What it does
+
+Static → Video takes **either a finished creative or a plain brief** and produces an on-brand
+animated video capped with a **branded end card**:
+
+<Steps>
+  <Step title="Confirm the brief">
+    Asks for the input type, aspect ratio, total length, style, and brand assets — nothing is assumed.
+  </Step>
+  <Step title="Decide the path">
+    A **finished creative** is animated directly (hero-seed). A **brief** goes through still generation.
+  </Step>
+  <Step title="Animate">
+    Animates the frame with an aspect-ratio-capable model (Seedance 2.0 → Kling O3 Pro → Veo 3.1).
+  </Step>
+  <Step title="Assemble & deliver">
+    Composites the clip + a mandatory-logo end card + BGM in HyperFrames, then renders the final MP4.
+  </Step>
+</Steps>
+
+## The core decision: finished creative vs. brief
+
+<CardGroup cols={2}>
+  <Card title="Hero-seed path" icon="image">
+    The user hands over a **complete, on-brand ad/hero** (logo, type, layout already in it).
+    **Skip still generation** — animate the creative directly. Only generate an image to build the
+    transparent logo for the end card.
+  </Card>
+  <Card title="Brief path" icon="pen-ruler">
+    A **text brief or rough/mood reference**. Derive an editable look spec, generate on-brand stills,
+    run the approval gate, then animate the approved frames.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Never silently regenerate a user's finished artwork. Re-inventing a polished creative wastes credits
+  and drifts from the brand's real logo, type, and layout. When unsure, ask: *"Animate this as-is, or
+  generate new frames from it?"*
+</Warning>
+
+## Workflow
+
+```text
+0. Confirm needs — input type (finished creative vs brief), aspect ratio, length, style, brand assets
+1. Intake       — reference/brief + brand assets (logo required for the end card)
+2. Look Spec    — editable spec with confirmed AR + length budget (brief path only)
+2b. Reframe     — if source AR ≠ target, nano-banana-2 first
+3. Frame(s)     — hero-seed: use the creative as-is · brief: generate stills
+4. Approval     — brief: pick keepers · hero: confirm the frame
+5. Animate      — AR-capable model, pinned via `model`
+6. Assemble     — clip + branded end card + BGM in HyperFrames
+7. Deliver      — final video + summary (frames, model used, credits)
+```
+
+## Model routing
+
+Always pass `model`. Pick the highest-priority model that fits the human/no-human situation **and**
+supports the target aspect ratio.
+
+| Priority | Model | `model` id | Route |
+| --- | --- | --- | --- |
+| **1 — primary** | Seedance 2.0 | `seedance2-std-i2v` | Default — no human/character in frame |
+| 1 (cheaper) | Seedance 2.0 Fast | `seedance2fast-fast-i2v` | Faster/cheaper draft |
+| **2 — fallback** | Kling O3 Pro | `kling-o3-pro-i2v` | Human / character in frame |
+| **3 — last resort** | Veo 3.1 | `veo31-std-i2v` | Only if Seedance + Kling both fail. Never a default. |
+
+### Aspect-ratio support
+
+The model **must** support the target AR — never change the user's AR to fit a model.
+
+| Model | 16:9 | 9:16 | 1:1 | 4:5 |
+| --- | :---: | :---: | :---: | :---: |
+| Seedance 2.0 (`seedance2-std-i2v`) | ✓ | ✓ | ✓ | ✗ |
+| Kling O3 Pro (`kling-o3-pro-i2v`) | ✓ | ✓ | ✓ | ✗ |
+| Veo 3.1 (`veo31-std-i2v`) | ✓ | ✓ | ✗ | ✗ |
+
+## Length budgeting
+
+Total length = **AI clip + end card**. The end card is ~3s, so a 10s video is ~7s AI + ~3s end card.
+Never pad the AI clip to fake the total — the end card covers its share in HyperFrames.
+
+## Install
+
+<CodeGroup>
+
+```bash Cursor
+# Clone the skills repo and symlink (or copy) into your Cursor skills dir
+git clone https://github.com/1sarthakbhardwaj/elarislabs-skills.git
+cp -R elarislabs-skills/skills/static-to-video ~/.cursor/skills/
+```
+
+```bash Claude
+# Copy into your Claude skills directory
+cp -R elarislabs-skills/skills/static-to-video ~/.claude/skills/
+```
+
+</CodeGroup>
+
+<Info>
+  Requires the ElarisLabs MCP server configured in your client, pointed at
+  `https://studio.elarislabs.ai/api/mcp` with your API key. Discovery tools (`list_*`, `get_credits`)
+  are free; generation, captions, and editing consume credits billed to the bound brand.
+</Info>
+
+## Source
+
+- **Skill:** [`skills/static-to-video/SKILL.md`](https://github.com/1sarthakbhardwaj/elarislabs-skills/blob/main/skills/static-to-video/SKILL.md)
+- **Exact MCP calls & model IDs:** [`reference.md`](https://github.com/1sarthakbhardwaj/elarislabs-skills/blob/main/skills/static-to-video/reference.md)
+- **End-card template:** [`assets/end-screen.html`](https://github.com/1sarthakbhardwaj/elarislabs-skills/blob/main/skills/static-to-video/assets/end-screen.html)
